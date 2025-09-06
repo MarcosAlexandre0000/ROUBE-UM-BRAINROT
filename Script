@@ -1,1 +1,165 @@
+loadstring([[
+-- Steal a Brainrot HUD Anti-Ban - Loadstring Ready
+local function main()
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local TweenService = game:GetService("TweenService")
+    local Debris = game:GetService("Debris")
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    
+    local success, humanoid = pcall(function()
+        return character:WaitForChild("Humanoid")
+    end)
+    if not success or not humanoid then return end
+
+    local mouse = player:GetMouse()
+    local settings = {superJump=false, speedBoost=false, teleport=false, visualEffects=false}
+    local defaultWalkSpeed = 16
+    local defaultJumpPower = 50
+
+    local function updateHumanoid()
+        pcall(function()
+            humanoid.WalkSpeed = settings.speedBoost and 50 or defaultWalkSpeed
+            humanoid.JumpPower = settings.superJump and 100 or defaultJumpPower
+        end)
+    end
+
+    RunService.RenderStepped:Connect(function()
+        if settings.superJump then
+            pcall(function()
+                if humanoid.FloorMaterial ~= Enum.Material.Air then
+                    humanoid.Jump = true
+                end
+            end)
+        end
+    end)
+
+    mouse.Button1Down:Connect(function()
+        if settings.teleport then
+            pcall(function()
+                if mouse.Target then
+                    character:SetPrimaryPartCFrame(CFrame.new(mouse.Hit.Position + Vector3.new(0,3,0)))
+                end
+            end)
+        end
+    end)
+
+    local highlight = Instance.new("Highlight")
+    pcall(function() highlight.Parent = character end)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0.5
+
+    local particle = Instance.new("ParticleEmitter")
+    pcall(function() particle.Parent = character:WaitForChild("HumanoidRootPart") end)
+    particle.Rate = 10
+    particle.Lifetime = NumberRange.new(0.5,1)
+    particle.Speed = NumberRange.new(1,3)
+    particle.Size = NumberSequence.new(0.5)
+    particle.Color = ColorSequence.new(Color3.fromRGB(255,0,0), Color3.fromRGB(255,255,0))
+
+    RunService.RenderStepped:Connect(function()
+        if settings.visualEffects then
+            pcall(function()
+                local r = (tick()*50)%255
+                local g = (tick()*80)%255
+                local b = (tick()*100)%255
+                highlight.FillColor = Color3.fromRGB(r,g,b)
+                highlight.OutlineColor = Color3.fromRGB(255-r,255-g,255-b)
+                particle.Enabled = true
+            end)
+        else
+            highlight.FillColor = Color3.fromRGB(255,0,0)
+            highlight.OutlineColor = Color3.fromRGB(255,255,255)
+            particle.Enabled = false
+        end
+    end)
+
+    local ScreenGui = Instance.new("ScreenGui")
+    pcall(function() ScreenGui.Parent = player:WaitForChild("PlayerGui") end)
+    ScreenGui.Name = "StealBrainrotHUD"
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 270)
+    frame.Position = UDim2.new(0, -220, 0.1, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    frame.BorderSizePixel = 0
+    frame.Parent = ScreenGui
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(0, 30, 0, 30)
+    toggleButton.Position = UDim2.new(1, -30, 0, 0)
+    toggleButton.Text = ">"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+    toggleButton.Parent = frame
+
+    local isOpen = false
+    toggleButton.MouseButton1Click:Connect(function()
+        isOpen = not isOpen
+        pcall(function()
+            TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quad),
+                {Position = isOpen and UDim2.new(0,0,0.1,0) or UDim2.new(0,-220,0.1,0)}):Play()
+            toggleButton.Text = isOpen and "<" or ">"
+        end)
+    end)
+
+    local function createHUDButton(name, position, settingKey)
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.new(0, 180, 0, 40)
+        button.Position = position
+        button.Text = name.." [OFF]"
+        button.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        button.TextColor3 = Color3.fromRGB(255,255,255)
+        button.TextScaled = true
+        button.Parent = frame
+
+        local gradient = Instance.new("UIGradient", button)
+        gradient.Color = ColorSequence.new(Color3.fromRGB(255,0,0), Color3.fromRGB(255,255,0))
+        gradient.Rotation = 45
+
+        button.MouseButton1Click:Connect(function()
+            settings[settingKey] = not settings[settingKey]
+            updateHumanoid()
+            button.Text = name.." ["..(settings[settingKey] and "ON" or "OFF").."]"
+
+            local goalColor = settings[settingKey] and Color3.fromRGB(0,255,0) or Color3.fromRGB(50,50,50)
+            TweenService:Create(button, TweenInfo.new(0.3), {BackgroundColor3 = goalColor}):Play()
+
+            local alert = Instance.new("TextLabel")
+            alert.Size = UDim2.new(0, 180, 0, 30)
+            alert.Position = UDim2.new(0, 0, 0, -35)
+            alert.BackgroundTransparency = 1
+            alert.Text = name.." "..(settings[settingKey] and "Ativado!" or "Desativado!")
+            alert.TextColor3 = Color3.fromRGB(0,255,0)
+            alert.TextScaled = true
+            alert.Parent = button
+            pcall(function()
+                TweenService:Create(alert, TweenInfo.new(1), {Position = UDim2.new(0,0,-70,0), TextTransparency = 1}):Play()
+                Debris:AddItem(alert, 1)
+            end)
+        end)
+    end
+
+    createHUDButton("Super Jump", UDim2.new(0,20,0,20), "superJump")
+    createHUDButton("Speed Boost", UDim2.new(0,20,0,70), "speedBoost")
+    createHUDButton("Teleport", UDim2.new(0,20,0,120), "teleport")
+    createHUDButton("Visual Effects", UDim2.new(0,20,0,170), "visualEffects")
+
+    local teleportIndicator = Instance.new("TextLabel")
+    teleportIndicator.Size = UDim2.new(0, 180, 0, 30)
+    teleportIndicator.Position = UDim2.new(0, 20, 0, 230)
+    teleportIndicator.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    teleportIndicator.TextColor3 = Color3.fromRGB(255,255,255)
+    teleportIndicator.TextScaled = true
+    teleportIndicator.Text = "Teleport: OFF"
+    teleportIndicator.Parent = frame
+
+    RunService.RenderStepped:Connect(function()
+        teleportIndicator.Text = "Teleport: "..(settings.teleport and "ON" or "OFF")
+    end)
+end
+
+pcall(main)
+]] )()
 
